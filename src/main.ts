@@ -104,3 +104,6 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+const generateSecret = () => {};
+
+export { generateSecret };
