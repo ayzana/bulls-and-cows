@@ -25,8 +25,9 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 
 const buildUi = (): void => {
   const root = document.body;
-
-  root.appendChild(el('h1', 'Bulls & Cows'));
+  const container = el('div');
+  container.className = 'container';
+  container.appendChild(el('h1', 'Bulls & Cows'));
 
   const settings = el('section');
   settings.id = 'settings';
@@ -88,7 +89,8 @@ const buildUi = (): void => {
 
   game.append(statusP, guessInput, submitBtn, newBtn, historyH, historyUl, recordsH, recordsUl);
 
-  root.append(settings, game);
+  container.append(settings, game);
+  root.appendChild(container);
 };
 
 const init = (): void => {
