@@ -10,6 +10,44 @@ const baseLabels: Record<Base, string> = {
   16: 'hex',
 };
 
+const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
+
+const renderSettings = (): void => {
+  const lengthSel = $<HTMLSelectElement>('#length');
+  const baseSel = $<HTMLSelectElement>('#base');
+  const base = Number(baseSel.value) as Base;
+  const maxLen = base === 2 ? 2 : 6;
+
+  [...lengthSel.options].forEach((opt) => {
+    const len = Number(opt.value);
+    opt.disabled = len > base || len > maxLen;
+    if (opt.disabled && lengthSel.value === opt.value) {
+      lengthSel.value = '2';
+    }
+  });
+};
+// logic
+const ALPHABETS: Record<Base, string> = {
+  2: '01',
+  8: '01234567',
+  10: '0123456789',
+  16: '0123456789abcdef',
+};
+
+const getAlphabet = (base: Base): string => ALPHABETS[base];
+
+// fucntions
+const generateSecret = (length: number, base: Base, random: () => number = Math.random): string => {
+  const pick = (pool: string, remaining: number, acc: string): string => {
+    if (remaining === 0) return acc;
+    const idx = Math.floor(random() * pool.length);
+    const chosen = pool[idx];
+    const nextPool = pool.slice(0, idx) + pool.slice(idx + 1);
+    return pick(nextPool, remaining - 1, acc + chosen);
+  };
+  return pick(getAlphabet(base), length, '');
+};
+
 //create el with text
 
 const el = <K extends keyof HTMLElementTagNameMap>(
@@ -96,7 +134,10 @@ const buildUi = (): void => {
 const init = (): void => {
   buildUi();
 
-  // renderSettings();
+  $<HTMLSelectElement>('#base').addEventListener('change', renderSettings);
+  $<HTMLSelectElement>('#length').addEventListener('change', renderSettings);
+
+  renderSettings();
 };
 
 if (document.readyState === 'loading') {
@@ -104,6 +145,5 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-const generateSecret = () => {};
 
 export { generateSecret };
