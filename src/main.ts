@@ -2,6 +2,27 @@
 
 type Base = 2 | 8 | 10 | 16;
 
+interface Settings {
+  readonly length: number;
+  readonly base: Base;
+}
+
+type GameStatus = 'playing' | 'won';
+
+interface HistoryEntry {
+  guess: string;
+  bulls: number;
+  cows: number;
+}
+
+interface GameState {
+  readonly settings: Settings;
+  readonly secret: string;
+  readonly history: readonly HistoryEntry[];
+  readonly status: GameStatus;
+  readonly startedAt: number;
+}
+
 // ui
 const baseLabels: Record<Base, string> = {
   2: 'bin',
@@ -10,7 +31,20 @@ const baseLabels: Record<Base, string> = {
   16: 'hex',
 };
 
+let state: GameState | null = null;
+
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
+
+const fillList = <T>(
+  list: HTMLUListElement,
+  items: readonly T[],
+  renderItem: (item: T, index: number) => HTMLLIElement,
+  emptyText?: string,
+): void => {
+  const nodes: HTMLLIElement[] =
+    items.length > 0 ? items.map(renderItem) : emptyText !== undefined ? [el('li', emptyText)] : [];
+  list.replaceChildren(...nodes);
+};
 
 const renderSettings = (): void => {
   const lengthSel = $<HTMLSelectElement>('#length');
@@ -36,6 +70,17 @@ const ALPHABETS: Record<Base, string> = {
 
 const getAlphabet = (base: Base): string => ALPHABETS[base];
 
+const startGame = (
+  settings: Settings,
+  now: number = Date.now(),
+  random: () => number = Math.random,
+): GameState => ({
+  settings,
+  secret: generateSecret(settings.length, settings.base, random),
+  history: [],
+  status: 'playing',
+  startedAt: now,
+});
 // fucntions
 const generateSecret = (length: number, base: Base, random: () => number = Math.random): string => {
   const pick = (pool: string, remaining: number, acc: string): string => {
@@ -57,6 +102,42 @@ const el = <K extends keyof HTMLElementTagNameMap>(
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
   return node;
+};
+
+const renderGame = (): void => {
+  if (!state) return;
+
+  fillList($('#history'), state.history, (h) =>
+    el('li', `${h.guess} → ${h.bulls} 🐂, ${h.cows} 🐄`),
+  );
+
+  const input = $<HTMLInputElement>('#guess');
+
+  input.maxLength = state.settings.length;
+
+  const status = $('#status');
+  if (state.status === 'won') {
+    status.textContent = `Победа! `;
+  } else {
+    status.textContent = `Угадайте ${state.settings.length} цифр в ${
+      baseLabels[state.settings.base]
+    }`;
+  }
+
+  input.disabled = state.status === 'won';
+  $<HTMLButtonElement>('#submit').disabled = state.status === 'won';
+
+  // renderRecords();
+};
+
+const startRound = (): void => {
+  const length = Number($<HTMLSelectElement>('#length').value);
+  const base = Number($<HTMLSelectElement>('#base').value) as Base;
+  const settings: Settings = { length, base };
+  state = startGame(settings);
+  $('#settings').hidden = true;
+  $('#game').hidden = false;
+  renderGame();
 };
 
 // init dom
@@ -136,7 +217,7 @@ const init = (): void => {
 
   $<HTMLSelectElement>('#base').addEventListener('change', renderSettings);
   $<HTMLSelectElement>('#length').addEventListener('change', renderSettings);
-
+  $('#start').addEventListener('click', startRound);
   renderSettings();
 };
 
