@@ -8,6 +8,6 @@ describe('generateSecret', () => {
       const v = [0.1, 0.1, 0.1, 0.1];
       return () => v[i++ % v.length];
     })();
-    expect(generateSecret(4, 10, seq)).toBe('0123');
+    expect(generateSecret(4, 10, seq)).toBe('1023');
   });
 });

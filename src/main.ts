@@ -218,13 +218,21 @@ const init = (): void => {
   $<HTMLSelectElement>('#base').addEventListener('change', renderSettings);
   $<HTMLSelectElement>('#length').addEventListener('change', renderSettings);
   $('#start').addEventListener('click', startRound);
+
+  // $('#new').addEventListener('click', newGame);
+  $<HTMLInputElement>('#guess').addEventListener('input', () => {
+    if (state) renderGame();
+  });
+
   renderSettings();
 };
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 }
 
 export { generateSecret };
