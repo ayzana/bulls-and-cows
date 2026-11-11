@@ -33,6 +33,12 @@ const ALPHABETS = {
     16: '0123456789abcdef',
 };
 const getAlphabet = (base) => ALPHABETS[base];
+const normalize = (char) => char.toLowerCase();
+const createDigitValidator = (base) => (char) => {
+    if (char.length !== 1)
+        return false;
+    return getAlphabet(base).includes(char.toLowerCase());
+};
 const startGame = (settings, now = Date.now(), random = Math.random) => ({
     settings,
     secret: generateSecret(settings.length, settings.base, random),
@@ -40,6 +46,25 @@ const startGame = (settings, now = Date.now(), random = Math.random) => ({
     status: 'playing',
     startedAt: now,
 });
+const submitGuess = (state, guess) => {
+    if (state.status !== 'playing') {
+        return { ok: false, state, reason: 'finished' };
+    }
+    const { length, base } = state.settings;
+    if (!isValidGuess(guess, length, base)) {
+        return { ok: false, state, reason: 'invalid' };
+    }
+    const evaluation = evaluateGuess(state.secret, guess);
+    const entry = { guess, ...evaluation };
+    const won = evaluation.bulls === length;
+    const next = {
+        ...state,
+        history: [...state.history, entry],
+        status: won ? 'won' : 'playing',
+    };
+    return { ok: true, state: next };
+};
+// const elapsedMs = (state: GameState, now: number = Date.now()): number => now - state.startedAt;
 // fucntions
 const generateSecret = (length, base, random = Math.random) => {
     const pick = (pool, remaining, acc) => {
@@ -51,6 +76,24 @@ const generateSecret = (length, base, random = Math.random) => {
         return pick(nextPool, remaining - 1, acc + chosen);
     };
     return pick(getAlphabet(base), length, '');
+};
+const evaluateGuess = (secret, guess) => {
+    const s = [...secret].map(normalize);
+    const g = [...guess].map(normalize);
+    const bulls = s.reduce((acc, digit, i) => (digit === g[i] ? acc + 1 : acc), 0);
+    const intersectionSize = s.filter((digit) => g.includes(digit)).length;
+    const cows = intersectionSize - bulls;
+    return { bulls, cows };
+};
+const isValidGuess = (guess, length, base) => {
+    if (guess.length !== length)
+        return false;
+    const validator = createDigitValidator(base);
+    const chars = [...guess];
+    if (!chars.every(validator))
+        return false;
+    const normalized = chars.map(normalize);
+    return new Set(normalized).size === normalized.length;
 };
 //create el with text
 const el = (tag, text) => {
@@ -70,7 +113,7 @@ const renderGame = () => {
         status.textContent = `Победа! `;
     }
     else {
-        status.textContent = `Угадайте ${state.settings.length} цифр в ${baseLabels[state.settings.base]}`;
+        status.textContent = `Угадайте ${state.settings.length} в ${baseLabels[state.settings.base]}`;
     }
     input.disabled = state.status === 'won';
     $('#submit').disabled = state.status === 'won';
@@ -83,6 +126,32 @@ const startRound = () => {
     state = startGame(settings);
     $('#settings').hidden = true;
     $('#game').hidden = false;
+    renderGame();
+};
+const onSubmit = () => {
+    if (!state)
+        return;
+    const guess = $('#guess').value;
+    const result = submitGuess(state, guess);
+    if (!result.ok) {
+        if (result.reason === 'invalid') {
+            $('#status').textContent = 'Недопустимая попытка';
+        }
+        return;
+    }
+    state = result.state;
+    $('#guess').value = '';
+    // if (state.status === 'won') {
+    //   const entry: RecordEntry = {
+    //     length: state.settings.length,
+    //     base: state.settings.base,
+    //     attempts: state.history.length,
+    //     timeMs: elapsedMs(state),
+    //     at: Date.now(),
+    //   };
+    //   records = addRecord(records, entry);
+    //   saveRecords(records);
+    // }
     renderGame();
 };
 // init dom
@@ -146,7 +215,7 @@ const init = () => {
     $('#base').addEventListener('change', renderSettings);
     $('#length').addEventListener('change', renderSettings);
     $('#start').addEventListener('click', startRound);
-    // $('#new').addEventListener('click', newGame);
+    $('#submit').addEventListener('click', onSubmit);
     $('#guess').addEventListener('input', () => {
         if (state)
             renderGame();
