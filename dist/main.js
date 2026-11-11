@@ -63,6 +63,15 @@ const renderSettings = () => {
             lengthSel.value = '2';
         }
     });
+    const len = Number(lengthSel.value);
+    const total = countPossibleSecrets(len, base);
+    $('#possible').textContent = `Возможных секретов: ${total}`;
+};
+const renderRecords = () => {
+    if (!state)
+        return;
+    const top = recordsFor(records, state.settings.length, state.settings.base);
+    fillList($('#records'), top, (r, i) => el('li', `${i + 1}. ${r.attempts} поп., ${(r.timeMs / 1000).toFixed(1)} с`), 'Пока пусто');
 };
 // logic
 const ALPHABETS = {
@@ -169,7 +178,7 @@ const renderGame = () => {
     }
     input.disabled = state.status === 'won';
     $('#submit').disabled = state.status === 'won';
-    // renderRecords();
+    renderRecords();
 };
 const startRound = () => {
     const length = Number($('#length').value);
@@ -205,6 +214,14 @@ const onSubmit = () => {
         saveRecords(records);
     }
     renderGame();
+};
+const newGame = () => {
+    state = null;
+    $('#settings').hidden = false;
+    $('#game').hidden = true;
+    $('#guess').value = '';
+    $('#history').replaceChildren();
+    renderSettings();
 };
 // init dom
 const buildUi = () => {
@@ -268,6 +285,7 @@ const init = () => {
     $('#length').addEventListener('change', renderSettings);
     $('#start').addEventListener('click', startRound);
     $('#submit').addEventListener('click', onSubmit);
+    $('#new').addEventListener('click', newGame);
     $('#guess').addEventListener('input', () => {
         if (state)
             renderGame();
