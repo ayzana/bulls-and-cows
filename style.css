@@ -12,6 +12,7 @@ body {
   flex-direction: column;
   gap: 10px;
   align-items: center;
+  justify-content: center;
 }
 
 label,
@@ -19,29 +20,32 @@ input,
 select,
 button {
   font-size: 20px;
-  padding: 0.25rem 0.5rem;
 }
 
 #settings {
   padding: 40px;
   border-radius: 10px;
   display: flex;
-  gap: 20px;
+  gap: 10px;
+  align-items: center;
   background-color: #a1cccc;
 }
 
 #guess {
-  width: 8rem;
   letter-spacing: 0.2rem;
+  margin-right: 10px;
 }
 
 button {
-  width: 100px;
+  width: 120px;
+  height: 60px;
   background-color: #35535c;
   color: #fff;
   border: 0;
   font-family: 'Alegreya Sans', sans-serif;
   line-height: 1.2;
-  padding: 0.7rem;
+  padding: 5px;
+  margin-left: 10px;
   border-radius: 10px;
+  cursor: pointer;
 }
