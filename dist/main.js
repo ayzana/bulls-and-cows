@@ -1,4 +1,42 @@
 // types
+//records
+const STORAGE_KEY = 'bulls-cows-records-v1';
+const TOP_N = 10;
+const keyOf = (r) => `${r.length}/${r.base}`;
+const compareRecords = (a, b) => a.attempts - b.attempts || a.timeMs - b.timeMs || a.at - b.at;
+const loadRecords = () => {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw)
+            return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed))
+            return [];
+        return parsed.filter((r) => typeof r === 'object' &&
+            r !== null &&
+            typeof r.attempts === 'number' &&
+            typeof r.timeMs === 'number');
+    }
+    catch {
+        return [];
+    }
+};
+const addRecord = (records, entry) => {
+    const all = [...records, entry].sort(compareRecords);
+    const byKey = new Map();
+    return all.filter((r) => {
+        const k = keyOf(r);
+        const seen = byKey.get(k) ?? 0;
+        if (seen >= TOP_N)
+            return false;
+        byKey.set(k, seen + 1);
+        return true;
+    });
+};
+const saveRecords = (records) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+};
+const recordsFor = (records, length, base) => records.filter((r) => r.length === length && r.base === base);
 // ui
 const baseLabels = {
     2: 'bin',
@@ -7,6 +45,7 @@ const baseLabels = {
     16: 'hex',
 };
 let state = null;
+let records = loadRecords();
 const $ = (sel) => document.querySelector(sel);
 const fillList = (list, items, renderItem, emptyText) => {
     const nodes = items.length > 0 ? items.map(renderItem) : emptyText !== undefined ? [el('li', emptyText)] : [];
@@ -64,7 +103,7 @@ const submitGuess = (state, guess) => {
     };
     return { ok: true, state: next };
 };
-// const elapsedMs = (state: GameState, now: number = Date.now()): number => now - state.startedAt;
+const elapsedMs = (state, now = Date.now()) => now - state.startedAt;
 // fucntions
 const generateSecret = (length, base, random = Math.random) => {
     const pick = (pool, remaining, acc) => {
@@ -77,6 +116,19 @@ const generateSecret = (length, base, random = Math.random) => {
     };
     return pick(getAlphabet(base), length, '');
 };
+const permutationsUncached = (length, base) => length <= 0 ? 1 : base < length ? 0 : base * permutationsUncached(length - 1, base - 1);
+const countPossibleSecrets = (() => {
+    const cache = new Map();
+    return (length, base) => {
+        const key = `${length}:${base}`;
+        const cached = cache.get(key);
+        if (cached !== undefined)
+            return cached;
+        const value = permutationsUncached(length, base);
+        cache.set(key, value);
+        return value;
+    };
+})();
 const evaluateGuess = (secret, guess) => {
     const s = [...secret].map(normalize);
     const g = [...guess].map(normalize);
@@ -141,17 +193,17 @@ const onSubmit = () => {
     }
     state = result.state;
     $('#guess').value = '';
-    // if (state.status === 'won') {
-    //   const entry: RecordEntry = {
-    //     length: state.settings.length,
-    //     base: state.settings.base,
-    //     attempts: state.history.length,
-    //     timeMs: elapsedMs(state),
-    //     at: Date.now(),
-    //   };
-    //   records = addRecord(records, entry);
-    //   saveRecords(records);
-    // }
+    if (state.status === 'won') {
+        const entry = {
+            length: state.settings.length,
+            base: state.settings.base,
+            attempts: state.history.length,
+            timeMs: elapsedMs(state),
+            at: Date.now(),
+        };
+        records = addRecord(records, entry);
+        saveRecords(records);
+    }
     renderGame();
 };
 // init dom
@@ -230,4 +282,4 @@ if (typeof document !== 'undefined') {
         init();
     }
 }
-export { generateSecret };
+export { generateSecret, evaluateGuess, isValidGuess, createDigitValidator, countPossibleSecrets, startGame, submitGuess, elapsedMs, addRecord, recordsFor, };

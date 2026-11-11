@@ -29,6 +29,59 @@ interface GameState {
   readonly status: GameStatus;
   readonly startedAt: number;
 }
+interface RecordEntry {
+  readonly length: number;
+  readonly base: Base;
+  readonly attempts: number;
+  readonly timeMs: number;
+  readonly at: number;
+}
+
+//records
+const STORAGE_KEY = 'bulls-cows-records-v1';
+const TOP_N = 10;
+
+const keyOf = (r: { length: number; base: Base }): string => `${r.length}/${r.base}`;
+
+const compareRecords = (a: RecordEntry, b: RecordEntry): number =>
+  a.attempts - b.attempts || a.timeMs - b.timeMs || a.at - b.at;
+
+const loadRecords = (): RecordEntry[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (r): r is RecordEntry =>
+        typeof r === 'object' &&
+        r !== null &&
+        typeof (r as RecordEntry).attempts === 'number' &&
+        typeof (r as RecordEntry).timeMs === 'number',
+    );
+  } catch {
+    return [];
+  }
+};
+
+const addRecord = (records: readonly RecordEntry[], entry: RecordEntry): RecordEntry[] => {
+  const all = [...records, entry].sort(compareRecords);
+  const byKey = new Map<string, number>();
+  return all.filter((r) => {
+    const k = keyOf(r);
+    const seen = byKey.get(k) ?? 0;
+    if (seen >= TOP_N) return false;
+    byKey.set(k, seen + 1);
+    return true;
+  });
+};
+
+const saveRecords = (records: readonly RecordEntry[]): void => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+};
+
+const recordsFor = (records: readonly RecordEntry[], length: number, base: Base): RecordEntry[] =>
+  records.filter((r) => r.length === length && r.base === base);
 
 // ui
 const baseLabels: Record<Base, string> = {
@@ -39,6 +92,7 @@ const baseLabels: Record<Base, string> = {
 };
 
 let state: GameState | null = null;
+let records: RecordEntry[] = loadRecords();
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
@@ -116,7 +170,7 @@ const submitGuess = (state: GameState, guess: string): SubmitResult => {
   return { ok: true, state: next };
 };
 
-// const elapsedMs = (state: GameState, now: number = Date.now()): number => now - state.startedAt;
+const elapsedMs = (state: GameState, now: number = Date.now()): number => now - state.startedAt;
 // fucntions
 const generateSecret = (length: number, base: Base, random: () => number = Math.random): string => {
   const pick = (pool: string, remaining: number, acc: string): string => {
@@ -128,6 +182,21 @@ const generateSecret = (length: number, base: Base, random: () => number = Math.
   };
   return pick(getAlphabet(base), length, '');
 };
+
+const permutationsUncached = (length: number, base: number): number =>
+  length <= 0 ? 1 : base < length ? 0 : base * permutationsUncached(length - 1, base - 1);
+
+const countPossibleSecrets = (() => {
+  const cache = new Map<string, number>();
+  return (length: number, base: number): number => {
+    const key = `${length}:${base}`;
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    const value = permutationsUncached(length, base);
+    cache.set(key, value);
+    return value;
+  };
+})();
 
 const evaluateGuess = (secret: string, guess: string): Evaluation => {
   const s = [...secret].map(normalize);
@@ -208,17 +277,17 @@ const onSubmit = (): void => {
   state = result.state;
   $<HTMLInputElement>('#guess').value = '';
 
-  // if (state.status === 'won') {
-  //   const entry: RecordEntry = {
-  //     length: state.settings.length,
-  //     base: state.settings.base,
-  //     attempts: state.history.length,
-  //     timeMs: elapsedMs(state),
-  //     at: Date.now(),
-  //   };
-  //   records = addRecord(records, entry);
-  //   saveRecords(records);
-  // }
+  if (state.status === 'won') {
+    const entry: RecordEntry = {
+      length: state.settings.length,
+      base: state.settings.base,
+      attempts: state.history.length,
+      timeMs: elapsedMs(state),
+      at: Date.now(),
+    };
+    records = addRecord(records, entry);
+    saveRecords(records);
+  }
 
   renderGame();
 };
@@ -318,4 +387,15 @@ if (typeof document !== 'undefined') {
   }
 }
 
-export { generateSecret };
+export {
+  generateSecret,
+  evaluateGuess,
+  isValidGuess,
+  createDigitValidator,
+  countPossibleSecrets,
+  startGame,
+  submitGuess,
+  elapsedMs,
+  addRecord,
+  recordsFor,
+};
