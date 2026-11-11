@@ -17,7 +17,7 @@ describe('evaluateGuess', () => {
     expect(evaluateGuess('1234', '1243')).toEqual({ bulls: 2, cows: 2 });
   });
   it('hex нечувствителен к регистру', () => {
-    expect(evaluateGuess('a1b2', 'A1B3')).toEqual({ bulls: 2, cows: 1 });
+    expect(evaluateGuess('a1b2', 'A2B3')).toEqual({ bulls: 2, cows: 1 });
   });
 });
 
